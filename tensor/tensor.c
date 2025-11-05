@@ -2,7 +2,7 @@
 This is a simple C extension module that defines a Tensor type for Python.
 It's only a 1D tensor of single precision floats for now but we keep things
 open for more dimensions in the future.
-The goal is to have the most minimal implementation possbile so that I can
+The goal is to have the most minimal implementation possible so that I can
 learn the C API for Python extensions.
 */
 #define PY_SSIZE_T_CLEAN
@@ -258,7 +258,7 @@ Tensor_repr(PyObject *op)
     if (repr_str == NULL) {
         return NULL;
     }
-    
+
     double *data_ptr = (double *)self->data;
     for (Py_ssize_t i = 0; i < self->dimensions[0]; i++) {
         // Convert double to Python float, then to string
@@ -267,14 +267,14 @@ Tensor_repr(PyObject *op)
             Py_DECREF(repr_str);
             return NULL;
         }
-        
+
         PyObject *num_str = PyObject_Repr(float_obj);
         Py_DECREF(float_obj);
         if (num_str == NULL) {
             Py_DECREF(repr_str);
             return NULL;
         }
-        
+
         PyUnicode_Append(&repr_str, num_str);
         Py_DECREF(num_str);
         if (repr_str == NULL) {
@@ -294,7 +294,7 @@ Tensor_repr(PyObject *op)
             }
         }
     }
-    
+
     PyObject *bracket_str = PyUnicode_FromString("], shape=(");
     if (bracket_str == NULL) {
         Py_DECREF(repr_str);
@@ -305,7 +305,7 @@ Tensor_repr(PyObject *op)
     if (repr_str == NULL) {
         return NULL;
     }
-    
+
     PyObject *shape_str = PyUnicode_FromFormat("%zd", self->dimensions[0]);
     if (shape_str == NULL) {
         Py_DECREF(repr_str);
@@ -316,7 +316,7 @@ Tensor_repr(PyObject *op)
     if (repr_str == NULL) {
         return NULL;
     }
-    
+
     PyObject *end_str = PyUnicode_FromString(",))");
     if (end_str == NULL) {
         Py_DECREF(repr_str);
@@ -324,7 +324,7 @@ Tensor_repr(PyObject *op)
     }
     PyUnicode_Append(&repr_str, end_str);
     Py_DECREF(end_str);
-    
+
     return repr_str;
 }
 

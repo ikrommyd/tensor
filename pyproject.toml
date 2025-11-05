@@ -5,3 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tensor"
 version = "0.0.1"
+
+[dependency-groups]
+dev = [
+    "setuptools",
+    "pre-commit",
+]
+test = [
+    "numpy",
+    "pytest",
+]

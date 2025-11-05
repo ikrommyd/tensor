@@ -1,0 +1,53 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+  - id: check-case-conflict
+  - id: check-merge-conflict
+  - id: check-symlinks
+  - id: check-yaml
+  - id: debug-statements
+  - id: end-of-file-fixer
+  - id: mixed-line-ending
+  - id: requirements-txt-fixer
+  - id: trailing-whitespace
+
+- repo: https://github.com/asottile/pyupgrade
+  rev: v3.21.0
+  hooks:
+  - id: pyupgrade
+    args: ["--py38-plus"]
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.14.3
+  hooks:
+  - id: ruff
+    args: ["--fix", "--show-fixes"]
+    types_or: [ python, pyi, jupyter ]
+  - id: ruff-format
+    types_or: [ python, pyi, jupyter ]
+
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.4.1
+  hooks:
+  - id: codespell
+    args: ["-L nd"]
+
+- repo: https://github.com/abravalheri/validate-pyproject
+  rev: v0.24.1
+  hooks:
+    - id: validate-pyproject
+
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v18.1.8
+  hooks:
+  - id: clang-format
+    types: [c, c++, cuda, proto]
+    args: ["-i"]
+
+- repo: https://github.com/pocc/pre-commit-hooks
+  rev: v1.3.5
+  hooks:
+  - id: clang-tidy
+    types: [c, c++]
+    args: ["--header-filter=.*"]

@@ -1,3 +1,21 @@
 CompileFlags:
   Add:
     - "-I/opt/python/3.14.0/include/python3.14d"
+
+FormatStyle: |
+  BasedOnStyle: LLVM
+  IndentWidth: 4
+  UseTab: Never
+  ColumnLimit: 100
+  AlignConsecutiveAssignments: false
+  AlignTrailingComments: true
+  AllowShortIfStatementsOnASingleLine: false
+  AllowShortFunctionsOnASingleLine: None
+  AllowShortLoopsOnASingleLine: false
+  BreakBeforeBraces: Attach
+  ConstructorInitializerAllOnOneLineOrOnePerLine: true
+  DerivePointerAlignment: true
+  PointerAlignment: Right
+  SpaceAfterCStyleCast: true
+  SpacesInParentheses: false
+  SpaceBeforeAssignmentOperators: true

@@ -1,6 +1,6 @@
 /*
 This is a simple C extension module that defines a Tensor type for Python.
-It's only a 1D tensor of single precision floats for now but we keep things
+It's only a 1D tensor of double precision floats for now but we keep things
 open for more dimensions in the future.
 The goal is to have the most minimal implementation possible so that I can
 learn the C API for Python extensions.

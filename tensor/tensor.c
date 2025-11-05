@@ -329,20 +329,20 @@ Tensor_repr(PyObject *op)
 }
 
 static PyTypeObject TensorType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "tensor.Tensor",
+    .tp_doc = PyDoc_STR("Tensor object"),
     .tp_basicsize = sizeof(TensorObject),
     .tp_itemsize = 0,
-    .tp_dealloc = (destructor)Tensor_dealloc,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
-    .tp_doc = "Tensor objects",
-    .tp_traverse = Tensor_traverse,
-    .tp_clear = Tensor_clear,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
     .tp_new = Tensor_new,
     .tp_init = (initproc)Tensor_init,
+    .tp_dealloc = Tensor_dealloc,
+    .tp_traverse = Tensor_traverse,
+    .tp_clear = Tensor_clear,
     .tp_members = Tensor_members,
-    .tp_getset = Tensor_getseters,
     .tp_methods = Tensor_methods,
+    .tp_getset = Tensor_getseters,
     .tp_repr = Tensor_repr,
 };
 

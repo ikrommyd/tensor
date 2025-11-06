@@ -1,6 +1,6 @@
 /*
 This is a simple C extension module that defines a Tensor type for Python.
-It's only a 1D tensor of double precision floats for now but we keep things
+It's only a 0D or 1D tensor of double precision floats for now but we keep things
 open for more dimensions in the future.
 The goal is to have the most minimal implementation possible so that I can
 learn the C API for Python extensions.
@@ -69,18 +69,51 @@ static int
 Tensor_init(PyObject *op, PyObject *args, PyObject *kwds)
 {
     TensorObject *self = (TensorObject *) op;
-    PyObject *input_list;
+    PyObject *input;
 
-    if (!PyArg_ParseTuple(args, "O", &input_list)) {
+    if (!PyArg_ParseTuple(args, "O", &input)) {
         return -1;
     }
 
-    if (!PySequence_Check(input_list)) {
-        PyErr_SetString(PyExc_TypeError, "Expected a sequence (list or tuple)");
+    if (PyNumber_Check(input) && !PySequence_Check(input)){
+        self -> nd = 0;
+
+        self->dimensions = PyMem_Malloc(0);
+        self->strides = PyMem_Malloc(0);
+        if (self->dimensions == NULL || self->strides == NULL) {
+            PyErr_NoMemory();
+            return -1;
+        }
+
+        self->data = PyMem_Malloc(sizeof(double));
+        if (self->data == NULL) {
+            PyErr_NoMemory();
+            return -1;
+        }
+
+        PyObject *float_obj = PyNumber_Float(input);
+        if (float_obj == NULL) {
+            return -1;
+        }
+
+        double value = PyFloat_AsDouble(float_obj);
+        Py_DECREF(float_obj);
+
+        if (value == -1.0 && PyErr_Occurred()) {
+            return -1;
+        }
+
+        *((double *)self->data) = value;
+        self->base = NULL;
+        return 0;
+    }
+
+    if (!PySequence_Check(input)) {
+        PyErr_SetString(PyExc_TypeError, "Expected a number or a sequence of numbers");
         return -1;
     }
 
-    Py_ssize_t length = PySequence_Length(input_list);
+    Py_ssize_t length = PySequence_Length(input);
     if (length < 0) {
         return -1;
     }
@@ -119,7 +152,7 @@ Tensor_init(PyObject *op, PyObject *args, PyObject *kwds)
     double *data_ptr = (double *)self->data;
 
     for (Py_ssize_t i = 0; i < length; i++) {
-        PyObject *item = PySequence_GetItem(input_list, i);
+        PyObject *item = PySequence_GetItem(input, i);
 
         if (item == NULL) {
             PyErr_SetString(PyExc_TypeError, "Failed to get item from sequence");
@@ -157,19 +190,6 @@ static PyMemberDef Tensor_members[] = {
     {"ndim", Py_T_INT, offsetof(TensorObject, nd), Py_READONLY, "number of dimensions"},
     {NULL}  /* Sentinel */
 };
-
-static PyObject *
-Tensor_getdata(PyObject *op, void *closure)
-{
-    TensorObject *self = (TensorObject *) op;
-    if (self->data) {
-        return PyMemoryView_FromMemory(self->data,
-                                       self->dimensions[0] * self->strides[0],
-                                       PyBUF_READ);
-    } else {
-        Py_RETURN_NONE;
-    }
-}
 
 static PyObject *
 Tensor_getshape(PyObject *op, void *closure)
@@ -232,12 +252,29 @@ Tensor_getsize(PyObject *op, void *closure)
     return PyLong_FromSsize_t(size);
 }
 
+static PyObject *
+Tensor_getdata(PyObject *op, void *closure)
+{
+    TensorObject *self = (TensorObject *) op;
+    if (self->data) {
+        Py_ssize_t bufsize = 1;
+        if (self->nd ==0) {
+            bufsize = sizeof(double);
+        } else {
+            bufsize = self->dimensions[0] * self->strides[0];
+        }
+        return PyMemoryView_FromMemory(self->data, bufsize, PyBUF_READ);
+    } else {
+        Py_RETURN_NONE;
+    }
+}
+
 static PyGetSetDef Tensor_getseters[] = {
-    {"data", (getter)Tensor_getdata, NULL, "Data buffer as memoryview", NULL},
     {"shape", (getter)Tensor_getshape, NULL, "Shape of the tensor", NULL},
     {"strides", (getter)Tensor_getstrides, NULL, "Strides of the tensor", NULL},
     {"base", (getter)Tensor_getbase, NULL, "Base tensor if view", NULL},
     {"size", (getter)Tensor_getsize, NULL, "Total number of elements", NULL},
+    {"data", (getter)Tensor_getdata, NULL, "Data buffer as memoryview", NULL},
     {NULL}  /* Sentinel */
 };
 
@@ -249,6 +286,17 @@ static PyObject *
 Tensor_repr(PyObject *op)
 {
     TensorObject *self = (TensorObject *) op;
+
+    if (self->nd == 0) {
+        double value = *((double *)self->data);
+        PyObject *float_obj = PyFloat_FromDouble(value);
+        if (float_obj == NULL) {
+            return NULL;
+        }
+        PyObject *repr_str = PyUnicode_FromFormat("Tensor(%R, shape=())", float_obj);
+        Py_DECREF(float_obj);
+        return repr_str;
+    }
 
     if (self->dimensions[0] == 0) {
         return PyUnicode_FromFormat("Tensor([], shape=(0,))");

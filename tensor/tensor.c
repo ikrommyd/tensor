@@ -255,7 +255,51 @@ static PyGetSetDef Tensor_getseters[] = {
     {NULL}  /* Sentinel */
 };
 
+static PyObject *
+Tensor_tolist(PyObject *op, PyObject *Py_UNUSED(ignored))
+{
+    TensorObject *self = (TensorObject *) op;
+
+    if (self->nd == 0) {
+        double value = *((double *)self->data);
+        return PyFloat_FromDouble(value);
+    }
+
+    PyObject *list = PyList_New(self->dimensions[0]);
+    if (list == NULL) {
+        Py_DECREF(list);
+        return NULL;
+    }
+
+    for (Py_ssize_t i = 0; i < self->dimensions[0]; i++) {
+        char *data_ptr = self->data + (i * self->strides[0]);
+        double value = *((double *)data_ptr);
+        PyObject *float_obj = PyFloat_FromDouble(value);
+        if (float_obj == NULL) {
+            Py_DECREF(list);
+            return NULL;
+        }
+        PyList_SET_ITEM(list, i, float_obj);
+    }
+
+    return list;
+}
+
+static PyObject *
+Tensor_item(PyObject *op, PyObject *Py_UNUSED(ignored))
+{
+    TensorObject *self = (TensorObject *) op;
+    if (self->nd != 0) {
+        PyErr_SetString(PyExc_ValueError, "item() only valid for 0D tensors");
+        return NULL;
+    }
+    double value = *((double *)self->data);
+    return PyFloat_FromDouble(value);
+}
+
 static struct PyMethodDef Tensor_methods[] = {
+    {"tolist", (PyCFunction)Tensor_tolist, METH_NOARGS, "Convert tensor to a list"},
+    {"item", (PyCFunction)Tensor_item, METH_NOARGS, "Get the single item from a 0D tensor as a python scalar"},
     {NULL, NULL, 0, NULL}
 };
 

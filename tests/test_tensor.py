@@ -3,6 +3,42 @@ from tensor import Tensor
 import pytest
 
 
+def test_0d():
+    x = Tensor(42.0)
+    y = np.array(42.0)
+    assert x.shape == y.shape
+    assert x.strides == y.strides
+    assert x.ndim == y.ndim
+    assert x.size == y.size
+    assert x.base == y.base
+    with pytest.raises(TypeError):
+        len(x)
+    assert x.tolist() == y.tolist()
+    assert x.item() == y.item()
+
+
+def test_1d():
+    x = Tensor([1.0, 2.0, 3.0, 4.0, 5.0])
+    y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    assert x.shape == y.shape
+    assert x.strides == y.strides
+    assert x.ndim == y.ndim
+    assert x.size == y.size
+    assert x.base == y.base
+    len(x) == len(y)
+    x = Tensor([1, 2, 3, 4, 5])
+    y = np.array([1, 2, 3, 4, 5])
+    assert x.shape == y.shape
+    assert x.strides == y.strides
+    assert x.ndim == y.ndim
+    assert x.size == y.size
+    assert x.base == y.base
+    len(x) == len(y)
+    assert x.tolist() == y.tolist()
+    with pytest.raises(ValueError):
+        x.item()
+
+
 def assert_slice_matches(tensor_view, numpy_view, index, expected_base):
     x_slice = tensor_view[index]
     y_slice = numpy_view[index]
@@ -12,6 +48,7 @@ def assert_slice_matches(tensor_view, numpy_view, index, expected_base):
     assert x_slice.size == y_slice.size
     assert len(x_slice) == len(y_slice)
     assert x_slice.base is expected_base
+    assert x_slice.tolist() == y_slice.tolist()
     return x_slice, y_slice
 
 
@@ -96,7 +133,7 @@ ALL_SLICE_SEQUENCES = [[slc] for slc in BASE_SLICES] + NESTED_SLICE_SEQUENCES
 def test_slicing(sequence):
     data = list(range(1, 33))
     x = Tensor(data)
-    y = np.array(data)
+    y = np.array(data, dtype=np.float64)
 
     view_tensor, view_numpy = x, y
     for slicer in sequence:

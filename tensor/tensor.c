@@ -7,8 +7,8 @@ learn the C API for Python extensions.
 */
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include <stddef.h> /* for offsetof() */
 
+#include <stddef.h> /* for offsetof() */
 
 // Define the Tensor object struct
 typedef struct {
@@ -23,7 +23,7 @@ typedef struct {
 static void
 Tensor_dealloc(PyObject *op)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
 
     PyMem_Free(self->dimensions);
     PyMem_Free(self->strides);
@@ -42,7 +42,7 @@ static PyObject *
 Tensor_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     TensorObject *self;
-    self = (TensorObject *) type->tp_alloc(type, 0);
+    self = (TensorObject *)type->tp_alloc(type, 0);
     if (self != NULL) {
         self->data = NULL;
         self->nd = 0;
@@ -50,20 +50,20 @@ Tensor_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         self->strides = NULL;
         self->base = NULL;
     }
-    return (PyObject *) self;
+    return (PyObject *)self;
 }
 
 static int
 Tensor_init(PyObject *op, PyObject *args, PyObject *kwds)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
     PyObject *input;
 
     if (!PyArg_ParseTuple(args, "O", &input)) {
         return -1;
     }
 
-    if (PyNumber_Check(input) && !PySequence_Check(input)){
+    if (PyNumber_Check(input) && !PySequence_Check(input)) {
         self->nd = 0;
 
         self->dimensions = PyMem_Malloc(0);
@@ -176,13 +176,13 @@ Tensor_init(PyObject *op, PyObject *args, PyObject *kwds)
 
 static PyMemberDef Tensor_members[] = {
     {"ndim", Py_T_INT, offsetof(TensorObject, nd), Py_READONLY, "number of dimensions"},
-    {NULL}  /* Sentinel */
+    {NULL} /* Sentinel */
 };
 
 static PyObject *
 Tensor_getshape(PyObject *op, void *closure)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
     PyObject *shape_tuple = PyTuple_New(self->nd);
     if (shape_tuple == NULL) {
         return NULL;
@@ -201,7 +201,7 @@ Tensor_getshape(PyObject *op, void *closure)
 static PyObject *
 Tensor_getstrides(PyObject *op, void *closure)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
     PyObject *strides_tuple = PyTuple_New(self->nd);
     if (strides_tuple == NULL) {
         return NULL;
@@ -220,7 +220,7 @@ Tensor_getstrides(PyObject *op, void *closure)
 static PyObject *
 Tensor_getbase(PyObject *op, void *closure)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
     if (self->base) {
         Py_INCREF(self->base);
         return self->base;
@@ -233,7 +233,7 @@ Tensor_getbase(PyObject *op, void *closure)
 static PyObject *
 Tensor_getsize(PyObject *op, void *closure)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
     Py_ssize_t size = 1;
     for (int i = 0; i < self->nd; i++) {
         size *= self->dimensions[i];
@@ -244,7 +244,7 @@ Tensor_getsize(PyObject *op, void *closure)
 static PyObject *
 Tensor_getdata(PyObject *op, void *closure)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
     if (self->data == NULL) {
         PyErr_SetString(PyExc_ValueError, "Tensor has no data");
         return NULL;
@@ -265,13 +265,13 @@ static PyGetSetDef Tensor_getseters[] = {
     {"base", (getter)Tensor_getbase, NULL, "Base tensor if view", NULL},
     {"size", (getter)Tensor_getsize, NULL, "Total number of elements", NULL},
     {"data", (getter)Tensor_getdata, NULL, "Data buffer as memoryview", NULL},
-    {NULL}  /* Sentinel */
+    {NULL} /* Sentinel */
 };
 
 static PyObject *
 Tensor_tolist(PyObject *op, PyObject *Py_UNUSED(ignored))
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
 
     if (self->nd == 0) {
         double value = *((double *)self->data);
@@ -300,7 +300,7 @@ Tensor_tolist(PyObject *op, PyObject *Py_UNUSED(ignored))
 static PyObject *
 Tensor_item(PyObject *op, PyObject *Py_UNUSED(ignored))
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
     if (self->nd != 0) {
         PyErr_SetString(PyExc_ValueError, "item() only valid for 0D tensors");
         return NULL;
@@ -311,14 +311,14 @@ Tensor_item(PyObject *op, PyObject *Py_UNUSED(ignored))
 
 static struct PyMethodDef Tensor_methods[] = {
     {"tolist", (PyCFunction)Tensor_tolist, METH_NOARGS, "Convert tensor to a list"},
-    {"item", (PyCFunction)Tensor_item, METH_NOARGS, "Get the single item from a 0D tensor as a python scalar"},
-    {NULL, NULL, 0, NULL}
-};
+    {"item", (PyCFunction)Tensor_item, METH_NOARGS,
+     "Get the single item from a 0D tensor as a python scalar"},
+    {NULL, NULL, 0, NULL}};
 
 static PyObject *
 Tensor_repr(PyObject *op)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
 
     if (self->nd == 0) {
         double value = *((double *)self->data);
@@ -414,7 +414,7 @@ Tensor_repr(PyObject *op)
 static Py_ssize_t
 Tensor_length(PyObject *op)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
     if (self->nd == 0) {
         PyErr_SetString(PyExc_TypeError, "len() of unsized object");
         return -1;
@@ -425,10 +425,11 @@ Tensor_length(PyObject *op)
 static PyObject *
 Tensor_subscript(PyObject *op, PyObject *key)
 {
-    TensorObject *self = (TensorObject *) op;
+    TensorObject *self = (TensorObject *)op;
 
     if (self->nd == 0) {
-        PyErr_SetString(PyExc_TypeError, "Tensor is 0-dimensional and cannot be indexed");
+        PyErr_SetString(PyExc_TypeError,
+                        "Tensor is 0-dimensional and cannot be indexed");
         return NULL;
     }
 
@@ -447,13 +448,13 @@ Tensor_subscript(PyObject *op, PyObject *key)
         }
 
         if (new_index < 0 || new_index >= self->dimensions[0]) {
-            PyErr_Format(PyExc_IndexError, "Index %zd out of range for tensor of size %zd",
-                         index,
+            PyErr_Format(PyExc_IndexError,
+                         "Index %zd out of range for tensor of size %zd", index,
                          self->dimensions[0]);
             return NULL;
         }
 
-        TensorObject *scalar = (TensorObject *) Tensor_new(Py_TYPE(self), NULL, NULL);
+        TensorObject *scalar = (TensorObject *)Tensor_new(Py_TYPE(self), NULL, NULL);
         if (scalar == NULL) {
             return NULL;
         }
@@ -479,7 +480,7 @@ Tensor_subscript(PyObject *op, PyObject *key)
         *((double *)scalar->data) = *((double *)data_ptr);
 
         scalar->base = NULL;
-        return (PyObject *) scalar;
+        return (PyObject *)scalar;
     }
     else if (PySlice_Check(key)) {
         Py_ssize_t start, stop, step, slicelength;
@@ -490,7 +491,7 @@ Tensor_subscript(PyObject *op, PyObject *key)
 
         slicelength = PySlice_AdjustIndices(self->dimensions[0], &start, &stop, step);
 
-        TensorObject *view = (TensorObject *) Tensor_new(Py_TYPE(self), NULL, NULL);
+        TensorObject *view = (TensorObject *)Tensor_new(Py_TYPE(self), NULL, NULL);
         if (view == NULL) {
             return NULL;
         }
@@ -522,16 +523,15 @@ Tensor_subscript(PyObject *op, PyObject *key)
             view->data = self->data + (start * self->strides[0]);
         }
 
-
         if (self->base != NULL) {
             view->base = self->base;
         }
         else {
-            view->base = (PyObject *) self;
+            view->base = (PyObject *)self;
         }
         Py_INCREF(view->base);
 
-        return (PyObject *) view;
+        return (PyObject *)view;
     }
     else {
         PyErr_SetString(PyExc_TypeError, "indices must be integers or slices");
@@ -545,8 +545,7 @@ static PyMappingMethods Tensor_as_mapping = {
 };
 
 static PyTypeObject TensorType = {
-    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "tensor.Tensor",
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0).tp_name = "tensor.Tensor",
     .tp_doc = PyDoc_STR("Tensor object"),
     .tp_basicsize = sizeof(TensorObject),
     .tp_itemsize = 0,
@@ -568,7 +567,7 @@ tensor_module_exec(PyObject *m)
         return -1;
     }
 
-    if (PyModule_AddObjectRef(m, "Tensor", (PyObject *) &TensorType) < 0) {
+    if (PyModule_AddObjectRef(m, "Tensor", (PyObject *)&TensorType) < 0) {
         return -1;
     }
 
@@ -578,8 +577,7 @@ tensor_module_exec(PyObject *m)
 static PyModuleDef_Slot tensor_module_slots[] = {
     {Py_mod_exec, tensor_module_exec},
     {Py_mod_multiple_interpreters, Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED},
-    {0, NULL}
-};
+    {0, NULL}};
 
 static PyModuleDef tensor_module = {
     .m_base = PyModuleDef_HEAD_INIT,

@@ -42,12 +42,18 @@ repos:
   rev: v18.1.8
   hooks:
   - id: clang-format
-    types: [c, c++, cuda, proto]
+    types_or: [c, c++, cuda, proto]
     args: ["-i"]
 
 - repo: https://github.com/pocc/pre-commit-hooks
   rev: v1.3.5
   hooks:
   - id: clang-tidy
-    types: [c, c++]
-    args: ["--header-filter=.*"]
+    types_or: [c, c++]
+    args:
+      [
+        "--header-filter=.*",
+        "--",
+        "-std=c11",
+        "-I/opt/python/3.14.0/include/python3.14d",
+      ]

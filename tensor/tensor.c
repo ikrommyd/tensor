@@ -476,8 +476,7 @@ Tensor_subscript(PyObject *op, PyObject *key)
 
         scalar->base = NULL;
         return (PyObject *) scalar;
-    }
-    else if (PySlice_Check(key)) {
+    } else if (PySlice_Check(key)) {
         Py_ssize_t start, stop, step, slicelength;
 
         if (PySlice_Unpack(key, &start, &stop, &step) < 0) {
@@ -512,8 +511,7 @@ Tensor_subscript(PyObject *op, PyObject *key)
         if (slicelength == 0) {
             view->strides[0] = self->strides[0];
             view->data = self->data;
-        }
-        else {
+        } else {
             view->strides[0] = self->strides[0] * step;
             view->data = self->data + (start * self->strides[0]);
         }
@@ -524,11 +522,10 @@ Tensor_subscript(PyObject *op, PyObject *key)
         } else {
             view->base = (PyObject *) self;
         }
-            Py_INCREF(view->base);
+        Py_INCREF(view->base);
 
         return (PyObject *) view;
-    }
-    else {
+    } else {
         PyErr_SetString(PyExc_TypeError, "indices must be integers or slices");
         return NULL;
     }

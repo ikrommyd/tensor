@@ -243,7 +243,17 @@ static PyObject *
 Tensor_getdata(PyObject *op, void *closure)
 {
     TensorObject *self = (TensorObject *) op;
-    return PyMemoryView_FromObject((PyObject *)self);
+    if (self->data == NULL) {
+        PyErr_SetString(PyExc_ValueError, "Tensor has no data");
+        return NULL;
+    }
+    Py_ssize_t bufsize = 1;
+    if (self->nd == 0) {
+        bufsize = sizeof(double);
+    } else {
+        bufsize = self->dimensions[0] * self->strides[0];
+    }
+    return PyMemoryView_FromMemory(self->data, bufsize, PyBUF_READ);
 }
 
 static PyGetSetDef Tensor_getseters[] = {
@@ -267,7 +277,6 @@ Tensor_tolist(PyObject *op, PyObject *Py_UNUSED(ignored))
 
     PyObject *list = PyList_New(self->dimensions[0]);
     if (list == NULL) {
-        Py_DECREF(list);
         return NULL;
     }
 

@@ -20,34 +20,21 @@ typedef struct {
     PyObject *base;          // For views/slices - NULL if owner
 } TensorObject;
 
-static int
-Tensor_traverse(PyObject *op, visitproc visit, void *arg)
-{
-    TensorObject *self = (TensorObject *) op;
-    Py_VISIT(self->base);
-    return 0;
-}
-
-static int
-Tensor_clear(PyObject *op)
-{
-    TensorObject *self = (TensorObject *) op;
-    Py_CLEAR(self->base);
-    return 0;
-}
-
 static void
 Tensor_dealloc(PyObject *op)
 {
     TensorObject *self = (TensorObject *) op;
+
     PyMem_Free(self->dimensions);
     PyMem_Free(self->strides);
+
     if (self->base == NULL) {
         PyMem_Free(self->data);
+    } else {
+        Py_DECREF(self->base);
     }
-    PyObject_GC_UnTrack(op);
-    (void)Tensor_clear(op);
-    Py_TYPE(op)->tp_free(op);
+
+    Py_TYPE(self)->tp_free(op);
 }
 
 static PyObject *
@@ -76,7 +63,7 @@ Tensor_init(PyObject *op, PyObject *args, PyObject *kwds)
     }
 
     if (PyNumber_Check(input) && !PySequence_Check(input)){
-        self -> nd = 0;
+        self->nd = 0;
 
         self->dimensions = PyMem_Malloc(0);
         self->strides = PyMem_Malloc(0);
@@ -256,17 +243,7 @@ static PyObject *
 Tensor_getdata(PyObject *op, void *closure)
 {
     TensorObject *self = (TensorObject *) op;
-    if (self->data) {
-        Py_ssize_t bufsize = 1;
-        if (self->nd ==0) {
-            bufsize = sizeof(double);
-        } else {
-            bufsize = self->dimensions[0] * self->strides[0];
-        }
-        return PyMemoryView_FromMemory(self->data, bufsize, PyBUF_READ);
-    } else {
-        Py_RETURN_NONE;
-    }
+    return PyMemoryView_FromObject((PyObject *)self);
 }
 
 static PyGetSetDef Tensor_getseters[] = {
@@ -307,10 +284,12 @@ Tensor_repr(PyObject *op)
         return NULL;
     }
 
-    double *data_ptr = (double *)self->data;
     for (Py_ssize_t i = 0; i < self->dimensions[0]; i++) {
         // Convert double to Python float, then to string
-        PyObject *float_obj = PyFloat_FromDouble(data_ptr[i]);
+        char *data_ptr = self->data + (i * self->strides[0]);
+        double value = *((double *)data_ptr);
+        PyObject *float_obj = PyFloat_FromDouble(value);
+
         if (float_obj == NULL) {
             Py_DECREF(repr_str);
             return NULL;
@@ -376,22 +355,152 @@ Tensor_repr(PyObject *op)
     return repr_str;
 }
 
+static Py_ssize_t
+Tensor_length(PyObject *op)
+{
+    TensorObject *self = (TensorObject *) op;
+    if (self->nd == 0) {
+        PyErr_SetString(PyExc_TypeError, "len() of unsized object");
+        return -1;
+    }
+    return self->dimensions[0];
+}
+
+static PyObject *
+Tensor_subscript(PyObject *op, PyObject *key)
+{
+    TensorObject *self = (TensorObject *) op;
+
+    if (self->nd == 0) {
+        PyErr_SetString(PyExc_TypeError, "Tensor is 0-dimensional and cannot be indexed");
+        return NULL;
+    }
+
+    if (PyLong_Check(key)) {
+        Py_ssize_t index = PyLong_AsSsize_t(key);
+        Py_ssize_t new_index;
+        if (index == -1 && PyErr_Occurred()) {
+            return NULL;
+        }
+
+        if (index < 0) {
+            new_index = self->dimensions[0] + index;
+        } else {
+            new_index = index;
+        }
+
+        if (new_index < 0 || new_index >= self->dimensions[0]) {
+            PyErr_Format(PyExc_IndexError, "Index %zd out of range for tensor of size %zd",
+                         index,
+                         self->dimensions[0]);
+            return NULL;
+        }
+
+        TensorObject *scalar = (TensorObject *) Tensor_new(Py_TYPE(self), NULL, NULL);
+        if (scalar == NULL) {
+            return NULL;
+        }
+
+        scalar->nd = 0;
+
+        scalar->dimensions = PyMem_Malloc(0);
+        scalar->strides = PyMem_Malloc(0);
+        if (scalar->dimensions == NULL || scalar->strides == NULL) {
+            PyErr_NoMemory();
+            Py_DECREF(scalar);
+            return NULL;
+        }
+
+        scalar->data = PyMem_Malloc(sizeof(double));
+        if (scalar->data == NULL) {
+            PyErr_NoMemory();
+            Py_DECREF(scalar);
+            return NULL;
+        }
+
+        char *data_ptr = self->data + (new_index * self->strides[0]);
+        *((double *)scalar->data) = *((double *)data_ptr);
+
+        scalar->base = NULL;
+        return (PyObject *) scalar;
+    }
+    else if (PySlice_Check(key)) {
+        Py_ssize_t start, stop, step, slicelength;
+
+        if (PySlice_Unpack(key, &start, &stop, &step) < 0) {
+            return NULL;
+        }
+
+        slicelength = PySlice_AdjustIndices(self->dimensions[0], &start, &stop, step);
+
+        TensorObject *view = (TensorObject *) Tensor_new(Py_TYPE(self), NULL, NULL);
+        if (view == NULL) {
+            return NULL;
+        }
+
+        view->nd = 1;
+
+        view->dimensions = PyMem_Malloc(sizeof(Py_ssize_t) * view->nd);
+        if (view->dimensions == NULL) {
+            PyErr_NoMemory();
+            Py_DECREF(view);
+            return NULL;
+        }
+
+        view->strides = PyMem_Malloc(sizeof(Py_ssize_t) * view->nd);
+        if (view->strides == NULL) {
+            PyErr_NoMemory();
+            Py_DECREF(view);
+            return NULL;
+        }
+
+        view->dimensions[0] = slicelength;
+
+        if (slicelength == 0) {
+            view->strides[0] = self->strides[0];
+            view->data = self->data;
+        }
+        else {
+            view->strides[0] = self->strides[0] * step;
+            view->data = self->data + (start * self->strides[0]);
+        }
+
+
+        if (self->base != NULL) {
+            view->base = self->base;
+        } else {
+            view->base = (PyObject *) self;
+        }
+            Py_INCREF(view->base);
+
+        return (PyObject *) view;
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError, "indices must be integers or slices");
+        return NULL;
+    }
+}
+
+static PyMappingMethods Tensor_as_mapping = {
+    .mp_length = Tensor_length,
+    .mp_subscript = Tensor_subscript,
+};
+
 static PyTypeObject TensorType = {
     .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "tensor.Tensor",
     .tp_doc = PyDoc_STR("Tensor object"),
     .tp_basicsize = sizeof(TensorObject),
     .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = Tensor_new,
     .tp_init = (initproc)Tensor_init,
     .tp_dealloc = Tensor_dealloc,
-    .tp_traverse = Tensor_traverse,
-    .tp_clear = Tensor_clear,
     .tp_members = Tensor_members,
     .tp_methods = Tensor_methods,
     .tp_getset = Tensor_getseters,
     .tp_repr = Tensor_repr,
+    .tp_as_mapping = &Tensor_as_mapping,
 };
 
 static int

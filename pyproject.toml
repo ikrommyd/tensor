@@ -15,3 +15,12 @@ test = [
     "numpy",
     "pytest",
 ]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+addopts = [
+  "-rfesxX",
+  "-v",
+]
+log_cli_level = "DEBUG"

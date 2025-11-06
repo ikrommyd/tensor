@@ -557,7 +557,7 @@ static PyTypeObject TensorType = {
     .tp_members = Tensor_members,
     .tp_methods = Tensor_methods,
     .tp_getset = Tensor_getseters,
-    .tp_repr = Tensor_repr,
+    .tp_repr = (reprfunc)Tensor_repr,
     .tp_as_mapping = &Tensor_as_mapping,
 };
 

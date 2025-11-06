@@ -30,7 +30,8 @@ Tensor_dealloc(PyObject *op)
 
     if (self->base == NULL) {
         PyMem_Free(self->data);
-    } else {
+    }
+    else {
         Py_DECREF(self->base);
     }
 
@@ -223,7 +224,8 @@ Tensor_getbase(PyObject *op, void *closure)
     if (self->base) {
         Py_INCREF(self->base);
         return self->base;
-    } else {
+    }
+    else {
         Py_RETURN_NONE;
     }
 }
@@ -250,7 +252,8 @@ Tensor_getdata(PyObject *op, void *closure)
     Py_ssize_t bufsize = 1;
     if (self->nd == 0) {
         bufsize = sizeof(double);
-    } else {
+    }
+    else {
         bufsize = self->dimensions[0] * self->strides[0];
     }
     return PyMemoryView_FromMemory(self->data, bufsize, PyBUF_READ);
@@ -438,7 +441,8 @@ Tensor_subscript(PyObject *op, PyObject *key)
 
         if (index < 0) {
             new_index = self->dimensions[0] + index;
-        } else {
+        }
+        else {
             new_index = index;
         }
 
@@ -476,7 +480,8 @@ Tensor_subscript(PyObject *op, PyObject *key)
 
         scalar->base = NULL;
         return (PyObject *) scalar;
-    } else if (PySlice_Check(key)) {
+    }
+    else if (PySlice_Check(key)) {
         Py_ssize_t start, stop, step, slicelength;
 
         if (PySlice_Unpack(key, &start, &stop, &step) < 0) {
@@ -511,7 +516,8 @@ Tensor_subscript(PyObject *op, PyObject *key)
         if (slicelength == 0) {
             view->strides[0] = self->strides[0];
             view->data = self->data;
-        } else {
+        }
+        else {
             view->strides[0] = self->strides[0] * step;
             view->data = self->data + (start * self->strides[0]);
         }
@@ -519,13 +525,15 @@ Tensor_subscript(PyObject *op, PyObject *key)
 
         if (self->base != NULL) {
             view->base = self->base;
-        } else {
+        }
+        else {
             view->base = (PyObject *) self;
         }
         Py_INCREF(view->base);
 
         return (PyObject *) view;
-    } else {
+    }
+    else {
         PyErr_SetString(PyExc_TypeError, "indices must be integers or slices");
         return NULL;
     }

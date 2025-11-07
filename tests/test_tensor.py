@@ -26,7 +26,7 @@ def test_1d_size_1():
     assert x.ndim == y.ndim
     assert x.size == y.size
     assert x.base == y.base
-    len(x) == len(y)
+    assert len(x) == len(y)
     assert x.tolist() == y.tolist()
     assert x.item() == y.item()
     np.testing.assert_equal(x.to_numpy(), y)
@@ -40,7 +40,7 @@ def test_1d_size_0():
     assert x.ndim == y.ndim
     assert x.size == y.size
     assert x.base == y.base
-    len(x) == len(y)
+    assert len(x) == len(y)
     assert x.tolist() == y.tolist()
     with pytest.raises(ValueError):
         x.item()
@@ -55,7 +55,7 @@ def test_1d():
     assert x.ndim == y.ndim
     assert x.size == y.size
     assert x.base == y.base
-    len(x) == len(y)
+    assert len(x) == len(y)
     x = tensor.Tensor([1, 2, 3, 4, 5])
     y = np.array([1, 2, 3, 4, 5])
     assert x.shape == y.shape
@@ -63,7 +63,7 @@ def test_1d():
     assert x.ndim == y.ndim
     assert x.size == y.size
     assert x.base == y.base
-    len(x) == len(y)
+    assert len(x) == len(y)
     assert x.tolist() == y.tolist()
     with pytest.raises(ValueError):
         x.item()
@@ -89,7 +89,7 @@ def test_tensor_tensor():
     assert x.ndim == y.ndim
     assert x.size == y.size
     assert x.base == y.base
-    len(x) == len(y)
+    assert len(x) == len(y)
     assert x.tolist() == y.tolist()
     with pytest.raises(ValueError):
         x.item()
@@ -134,7 +134,7 @@ def test_tensor_copy():
     assert x_copy.ndim == y_copy.ndim
     assert x_copy.size == y_copy.size
     assert x_copy.base == y_copy.base
-    len(x_copy) == len(y_copy)
+    assert len(x_copy) == len(y_copy)
     assert x_copy.tolist() == y_copy.tolist()
     with pytest.raises(ValueError):
         x_copy.item()
@@ -147,7 +147,7 @@ def test_tensor_copy():
     assert x_copy.ndim == y_copy.ndim
     assert x_copy.size == y_copy.size
     assert x_copy.base == y_copy.base
-    len(x_copy) == len(y_copy)
+    assert len(x_copy) == len(y_copy)
     assert x_copy.tolist() == y_copy.tolist()
     with pytest.raises(ValueError):
         x_copy.item()

@@ -309,10 +309,75 @@ Tensor_item(PyObject *op, PyObject *Py_UNUSED(ignored))
     return PyFloat_FromDouble(value);
 }
 
+static PyObject *
+Tensor_copy(PyObject *op, PyObject *Py_UNUSED(ignored))
+{
+    TensorObject *self = (TensorObject *)op;
+
+    TensorObject *copy = (TensorObject *)Tensor_new(Py_TYPE(self), NULL, NULL);
+    if (copy == NULL) {
+        return NULL;
+    }
+
+    copy->nd = self->nd;
+
+    copy->dimensions = PyMem_Malloc(sizeof(Py_ssize_t) * copy->nd);
+    if (copy->dimensions == NULL) {
+        PyErr_NoMemory();
+        Py_DECREF(copy);
+        return NULL;
+    }
+
+    copy->strides = PyMem_Malloc(sizeof(Py_ssize_t) * copy->nd);
+    if (copy->strides == NULL) {
+        PyErr_NoMemory();
+        Py_DECREF(copy);
+        return NULL;
+    }
+
+    if (copy->nd == 0) {
+        copy->data = PyMem_Malloc(sizeof(double));
+        if (copy->data == NULL) {
+            PyErr_NoMemory();
+            Py_DECREF(copy);
+            return NULL;
+        }
+        *((double *)copy->data) = *((double *)self->data);
+    }
+    else {
+        copy->dimensions[0] = self->dimensions[0];
+
+        if (self->dimensions[0] == 0) {
+            copy->strides[0] = 0;
+            copy->data = NULL;
+        }
+        else {
+            copy->strides[0] = sizeof(double);
+            Py_ssize_t data_size = self->dimensions[0] * sizeof(double);
+            copy->data = PyMem_Malloc(data_size);
+            if (copy->data == NULL) {
+                PyErr_NoMemory();
+                Py_DECREF(copy);
+                return NULL;
+            }
+
+            double *dst = (double *)copy->data;
+            for (Py_ssize_t i = 0; i < self->dimensions[0]; i++) {
+                char *src_ptr = self->data + (i * self->strides[0]);
+                dst[i] = *((double *)src_ptr);
+            }
+        }
+    }
+
+    copy->base = NULL;
+    return (PyObject *)copy;
+}
+
 static struct PyMethodDef Tensor_methods[] = {
     {"tolist", (PyCFunction)Tensor_tolist, METH_NOARGS, "Convert tensor to a list"},
     {"item", (PyCFunction)Tensor_item, METH_NOARGS,
      "Get the single item from a 0D tensor as a python scalar"},
+    {"copy", (PyCFunction)Tensor_copy, METH_NOARGS, "Return a copy of the tensor"},
     {NULL, NULL, 0, NULL}};
 
 static PyObject *
@@ -560,6 +625,54 @@ static PyTypeObject TensorType = {
     .tp_as_mapping = &Tensor_as_mapping,
 };
 
+static PyObject *
+tensor_tensor(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *obj;
+    int copy = 0;
+
+    static char *kwlist[] = {"object", "copy", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|$p", kwlist, &obj, &copy)) {
+        return NULL;
+    }
+
+    if (PyObject_TypeCheck(obj, &TensorType)) {
+        if (copy) {
+            return Tensor_copy(obj, NULL);
+        }
+        else {
+            Py_INCREF(obj);
+            return obj;
+        }
+    }
+
+    PyObject *tensor_obj = Tensor_new(&TensorType, NULL, NULL);
+    if (tensor_obj == NULL) {
+        return NULL;
+    }
+
+    PyObject *init_args = PyTuple_Pack(1, obj);
+    if (init_args == NULL) {
+        Py_DECREF(tensor_obj);
+        return NULL;
+    }
+
+    if (Tensor_init(tensor_obj, init_args, NULL) < 0) {
+        Py_DECREF(init_args);
+        Py_DECREF(tensor_obj);
+        return NULL;
+    }
+
+    Py_DECREF(init_args);
+    return tensor_obj;
+}
+
+static PyMethodDef tensor_module_methods[] = {
+    {"tensor", (PyCFunction)tensor_tensor, METH_VARARGS | METH_KEYWORDS,
+     "Create a Tensor from a number or sequence"},
+    {NULL, NULL, 0, NULL}};
+
 static int
 tensor_module_exec(PyObject *m)
 {
@@ -584,6 +697,7 @@ static PyModuleDef tensor_module = {
     .m_name = "tensor",
     .m_doc = "A simple Tensor module",
     .m_size = 0,
+    .m_methods = tensor_module_methods,
     .m_slots = tensor_module_slots,
 };
 

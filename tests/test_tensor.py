@@ -1,10 +1,10 @@
 import numpy as np
-from tensor import Tensor
+import tensor
 import pytest
 
 
 def test_0d():
-    x = Tensor(42.0)
+    x = tensor.Tensor(42.0)
     y = np.array(42.0)
     assert x.shape == y.shape
     assert x.strides == y.strides
@@ -18,7 +18,7 @@ def test_0d():
 
 
 def test_1d():
-    x = Tensor([1.0, 2.0, 3.0, 4.0, 5.0])
+    x = tensor.Tensor([1.0, 2.0, 3.0, 4.0, 5.0])
     y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     assert x.shape == y.shape
     assert x.strides == y.strides
@@ -26,7 +26,7 @@ def test_1d():
     assert x.size == y.size
     assert x.base == y.base
     len(x) == len(y)
-    x = Tensor([1, 2, 3, 4, 5])
+    x = tensor.Tensor([1, 2, 3, 4, 5])
     y = np.array([1, 2, 3, 4, 5])
     assert x.shape == y.shape
     assert x.strides == y.strides
@@ -37,6 +37,90 @@ def test_1d():
     assert x.tolist() == y.tolist()
     with pytest.raises(ValueError):
         x.item()
+
+
+def test_tensor_tensor():
+    x = tensor.tensor(42.0)
+    y = np.array(42.0)
+    assert x.shape == y.shape
+    assert x.strides == y.strides
+    assert x.ndim == y.ndim
+    assert x.size == y.size
+    assert x.base == y.base
+    with pytest.raises(TypeError):
+        len(x)
+    assert x.tolist() == y.tolist()
+    assert x.item() == y.item()
+
+    x = tensor.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
+    y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    assert x.shape == y.shape
+    assert x.strides == y.strides
+    assert x.ndim == y.ndim
+    assert x.size == y.size
+    assert x.base == y.base
+    len(x) == len(y)
+    assert x.tolist() == y.tolist()
+    with pytest.raises(ValueError):
+        x.item()
+
+
+def test_tensor_copy():
+    x = tensor.tensor(42.0)
+    y = np.array(42.0)
+    x_copy = x.copy()
+    y_copy = y.copy()
+    assert x_copy is not x
+    assert x_copy.shape == y_copy.shape
+    assert x_copy.strides == y_copy.strides
+    assert x_copy.ndim == y_copy.ndim
+    assert x_copy.size == y_copy.size
+    assert x_copy.base == y_copy.base
+    with pytest.raises(TypeError):
+        len(x_copy)
+    assert x_copy.tolist() == y_copy.tolist()
+    assert x_copy.item() == y_copy.item()
+
+    x_copy = tensor.tensor(x, copy=True)
+    y_copy = np.asarray(y, copy=True)
+    assert x_copy is not x
+    assert x_copy.shape == y_copy.shape
+    assert x_copy.strides == y_copy.strides
+    assert x_copy.ndim == y_copy.ndim
+    assert x_copy.size == y_copy.size
+    assert x_copy.base == y_copy.base
+    with pytest.raises(TypeError):
+        len(x_copy)
+    assert x_copy.tolist() == y_copy.tolist()
+    assert x_copy.item() == y_copy.item()
+
+    x = tensor.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
+    y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    x_copy = x.copy()
+    y_copy = y.copy()
+    assert x_copy is not x
+    assert x_copy.shape == y_copy.shape
+    assert x_copy.strides == y_copy.strides
+    assert x_copy.ndim == y_copy.ndim
+    assert x_copy.size == y_copy.size
+    assert x_copy.base == y_copy.base
+    len(x_copy) == len(y_copy)
+    assert x_copy.tolist() == y_copy.tolist()
+    with pytest.raises(ValueError):
+        x_copy.item()
+
+    x_copy = tensor.tensor(x, copy=True)
+    y_copy = np.asarray(y, copy=True)
+    assert x_copy is not x
+    assert x_copy.shape == y_copy.shape
+    assert x_copy.strides == y_copy.strides
+    assert x_copy.ndim == y_copy.ndim
+    assert x_copy.size == y_copy.size
+    assert x_copy.base == y_copy.base
+    len(x_copy) == len(y_copy)
+    assert x_copy.tolist() == y_copy.tolist()
+    with pytest.raises(ValueError):
+        x_copy.item()
 
 
 def assert_slice_matches(tensor_view, numpy_view, index, expected_base):
@@ -132,7 +216,7 @@ ALL_SLICE_SEQUENCES = [[slc] for slc in BASE_SLICES] + NESTED_SLICE_SEQUENCES
 @pytest.mark.parametrize("sequence", ALL_SLICE_SEQUENCES)
 def test_slicing(sequence):
     data = list(range(1, 33))
-    x = Tensor(data)
+    x = tensor.Tensor(data)
     y = np.array(data, dtype=np.float64)
 
     view_tensor, view_numpy = x, y
@@ -140,3 +224,36 @@ def test_slicing(sequence):
         view_tensor, view_numpy = assert_slice_matches(
             view_tensor, view_numpy, slicer, x
         )
+
+
+@pytest.mark.parametrize("sequence", ALL_SLICE_SEQUENCES)
+def test_copy_of_sliced_tensor(sequence):
+    data = list(range(1, 33))
+    x = tensor.Tensor(data)
+    y = np.array(data, dtype=np.float64)
+
+    view_tensor, view_numpy = x, y
+    for slicer in sequence:
+        view_tensor, view_numpy = view_tensor[slicer], view_numpy[slicer]
+
+    x_copy = view_tensor.copy()
+    y_copy = view_numpy.copy()
+
+    assert x_copy.shape == y_copy.shape
+    assert x_copy.strides == y_copy.strides
+    assert x_copy.ndim == y_copy.ndim
+    assert x_copy.size == y_copy.size
+    assert len(x_copy) == len(y_copy)
+    assert x_copy.base is not view_tensor.base
+    assert x_copy.tolist() == y_copy.tolist()
+
+    x_copy = tensor.tensor(view_tensor, copy=True)
+    y_copy = np.asarray(view_numpy, copy=True)
+
+    assert x_copy.shape == y_copy.shape
+    assert x_copy.strides == y_copy.strides
+    assert x_copy.ndim == y_copy.ndim
+    assert x_copy.size == y_copy.size
+    assert len(x_copy) == len(y_copy)
+    assert x_copy.base is not view_tensor.base
+    assert x_copy.tolist() == y_copy.tolist()

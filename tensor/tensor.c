@@ -1257,11 +1257,19 @@ Tensor_contains(PyObject *op, PyObject *value)
     return 0;  // Not found
 }
 
+static PyObject *
+Tensor_concat(PyObject *op, PyObject *other)
+{
+    PyErr_SetString(PyExc_TypeError, "concatenation not supported for Tensor");
+    return NULL;
+}
+
 static PySequenceMethods Tensor_as_sequence = {
     .sq_length = Tensor_length,
     .sq_item = Tensor_sq_item,
     .sq_ass_item = Tensor_sq_ass_item,
     .sq_contains = Tensor_contains,
+    .sq_concat = Tensor_concat,
 };
 
 // Type object definition - this is the "class" definition in C

@@ -8,7 +8,10 @@ learn the C API for Python extensions.
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <stddef.h> /* for offsetof() */
+
+#include <numpy/arrayobject.h>
 
 // Define the Tensor object struct
 typedef struct {
@@ -381,11 +384,57 @@ Tensor_copy(PyObject *op, PyObject *Py_UNUSED(ignored))
     return (PyObject *)copy;
 }
 
+static PyObject *
+Tensor_to_numpy(PyObject *op, PyObject *Py_UNUSED(ignored))
+{
+    TensorObject *self = (TensorObject *)op;
+
+    npy_intp dims[1];
+    int ndim;
+
+    if (self->nd == 0) {
+        // 0D tensor - create 0D NumPy array
+        ndim = 0;
+        dims[0] = 0;  // Not used for 0D
+    }
+    else {
+        // 1D tensor
+        ndim = 1;
+        dims[0] = self->dimensions[0];
+    }
+
+    // Create a new NumPy array
+    PyObject *numpy_array = PyArray_SimpleNew(ndim, dims, NPY_DOUBLE);
+    if (numpy_array == NULL) {
+        return NULL;
+    }
+
+    // Get pointer to NumPy array data
+    double *numpy_data = (double *)PyArray_DATA((PyArrayObject *)numpy_array);
+
+    // Copy data from tensor to numpy array
+    if (self->nd == 0) {
+        // Copy single scalar
+        numpy_data[0] = *((double *)self->data);
+    }
+    else {
+        // Copy 1D array element by element (respects strides)
+        for (Py_ssize_t i = 0; i < self->dimensions[0]; i++) {
+            char *src_ptr = self->data + (i * self->strides[0]);
+            numpy_data[i] = *((double *)src_ptr);
+        }
+    }
+
+    return numpy_array;
+}
+
 static struct PyMethodDef Tensor_methods[] = {
     {"tolist", (PyCFunction)Tensor_tolist, METH_NOARGS, "Convert tensor to a list"},
     {"item", (PyCFunction)Tensor_item, METH_NOARGS,
      "Get the single item from a 0D tensor as a python scalar"},
     {"copy", (PyCFunction)Tensor_copy, METH_NOARGS, "Return a copy of the tensor"},
+    {"to_numpy", (PyCFunction)Tensor_to_numpy, METH_NOARGS,
+     "Convert tensor to a NumPy array"},
     {NULL, NULL, 0, NULL}};
 
 static PyObject *
@@ -848,5 +897,9 @@ static PyModuleDef tensor_module = {
 PyMODINIT_FUNC
 PyInit_tensor(void)
 {
+    if (PyArray_ImportNumPyAPI() < 0) {
+        return NULL;
+    }
+
     return PyModuleDef_Init(&tensor_module);
 }

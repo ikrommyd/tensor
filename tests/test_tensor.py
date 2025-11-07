@@ -15,6 +15,7 @@ def test_0d():
         len(x)
     assert x.tolist() == y.tolist()
     assert x.item() == y.item()
+    np.testing.assert_equal(x.to_numpy(), y)
 
 
 def test_1d_size_1():
@@ -28,6 +29,22 @@ def test_1d_size_1():
     len(x) == len(y)
     assert x.tolist() == y.tolist()
     assert x.item() == y.item()
+    np.testing.assert_equal(x.to_numpy(), y)
+
+
+def test_1d_size_0():
+    x = tensor.Tensor([])
+    y = np.array([])
+    assert x.shape == y.shape
+    assert x.strides == y.strides
+    assert x.ndim == y.ndim
+    assert x.size == y.size
+    assert x.base == y.base
+    len(x) == len(y)
+    assert x.tolist() == y.tolist()
+    with pytest.raises(ValueError):
+        x.item()
+    np.testing.assert_equal(x.to_numpy(), y)
 
 
 def test_1d():

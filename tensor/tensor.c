@@ -14,7 +14,7 @@ learn the C API for Python extensions.
 typedef struct {
     PyObject_HEAD
     char *data;              // Pointer to the start of the data buffer
-    int nd;                  // Number of dimensions (will be 1 for now)
+    int nd;                  // Number of dimensions (will be 0 or 1 for now)
     Py_ssize_t *dimensions;  // Array of dimension sizes
     Py_ssize_t *strides;     // Bytes to next element in each dimension
     PyObject *base;          // For views/slices - NULL if owner

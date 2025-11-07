@@ -549,6 +549,11 @@ Tensor_repr(PyObject *op)
 {
     TensorObject *self = (TensorObject *)op;
 
+    // Handle uninitialized tensor
+    if (self->data == NULL) {
+        return PyUnicode_FromString("Tensor(<uninitialized>)");
+    }
+
     // Handle 0D tensor: "Tensor(5.0, shape=())"
     if (self->nd == 0) {
         double value = *((double *)self->data);

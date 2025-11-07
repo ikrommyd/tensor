@@ -604,9 +604,145 @@ Tensor_subscript(PyObject *op, PyObject *key)
     }
 }
 
+static PyTypeObject TensorType;
+
+static int
+Tensor_ass_subscript(PyObject *op, PyObject *key, PyObject *value)
+{
+    TensorObject *self = (TensorObject *)op;
+
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "cannot delete tensor elements");
+        return -1;
+    }
+
+    if (self->nd == 0) {
+        PyErr_SetString(PyExc_TypeError,
+                        "Tensor is 0-dimensional and cannot be indexed");
+        return -1;
+    }
+    TensorObject *value_tensor;
+
+    if (PyObject_TypeCheck(value, &TensorType)) {
+        value_tensor = (TensorObject *)value;
+        Py_INCREF(value_tensor);
+    }
+    else {
+        value_tensor = (TensorObject *)Tensor_new(&TensorType, NULL, NULL);
+        if (value_tensor == NULL) {
+            return -1;
+        }
+
+        PyObject *init_args = PyTuple_Pack(1, value);
+        if (init_args == NULL) {
+            Py_DECREF(value_tensor);
+            return -1;
+        }
+
+        if (Tensor_init((PyObject *)value_tensor, init_args, NULL) < 0) {
+            Py_DECREF(init_args);
+            Py_DECREF(value_tensor);
+            return -1;
+        }
+
+        Py_DECREF(init_args);
+    }
+
+    // Handle integer indexing: x[i] = value
+    if (PyLong_Check(key)) {
+        Py_ssize_t index = PyLong_AsSsize_t(key);
+        Py_ssize_t new_index;
+        if (index == -1 && PyErr_Occurred()) {
+            Py_DECREF(value_tensor);
+            return -1;
+        }
+
+        if (index < 0) {
+            new_index = self->dimensions[0] + index;
+        }
+        else {
+            new_index = index;
+        }
+
+        if (new_index < 0 || new_index >= self->dimensions[0]) {
+            PyErr_Format(PyExc_IndexError,
+                         "Index %zd out of range for tensor of size %zd", index,
+                         self->dimensions[0]);
+            Py_DECREF(value_tensor);
+            return -1;
+        }
+
+        if (value_tensor->nd != 0) {
+            PyErr_SetString(PyExc_ValueError,
+                            "setting a tensor element with a sequence");
+            Py_DECREF(value_tensor);
+            return -1;
+        }
+
+        double scalar_value;
+        scalar_value = *((double *)value_tensor->data);
+        char *data_ptr = self->data + (new_index * self->strides[0]);
+        *((double *)data_ptr) = scalar_value;
+
+        Py_DECREF(value_tensor);
+        return 0;
+    }
+    else if (PySlice_Check(key)) {
+        Py_ssize_t start, stop, step, slicelength;
+
+        if (PySlice_Unpack(key, &start, &stop, &step) < 0) {
+            Py_DECREF(value_tensor);
+            return -1;
+        }
+
+        slicelength = PySlice_AdjustIndices(self->dimensions[0], &start, &stop, step);
+
+        // Case 1: Scalar broadcast (0D or size 1)
+        if (value_tensor->nd == 0 ||
+            (value_tensor->nd == 1 && value_tensor->dimensions[0] == 1)) {
+            double scalar_value = *((double *)value_tensor->data);
+
+            // Broadcast to all elements in the slice
+            for (Py_ssize_t i = 0; i < slicelength; i++) {
+                Py_ssize_t idx = start + i * step;
+                char *data_ptr = self->data + (idx * self->strides[0]);
+                *((double *)data_ptr) = scalar_value;
+            }
+        }
+        // Case 2: Element-wise assignment
+        else if (value_tensor->nd == 1 && value_tensor->dimensions[0] == slicelength) {
+            for (Py_ssize_t i = 0; i < slicelength; i++) {
+                Py_ssize_t idx = start + i * step;
+                char *data_ptr = self->data + (idx * self->strides[0]);
+                char *value_ptr = value_tensor->data + (i * value_tensor->strides[0]);
+                double val = *((double *)value_ptr);
+                *((double *)data_ptr) = val;
+            }
+        }
+        // Case 3: Shape mismatch
+        else {
+            PyErr_Format(
+                PyExc_ValueError,
+                "could not broadcast input tensor from shape (%zd,) into shape (%zd,)",
+                value_tensor->dimensions[0], slicelength);
+            Py_DECREF(value_tensor);
+            return -1;
+        }
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError, "indices must be integers or slices");
+        Py_DECREF(value_tensor);
+        return -1;
+    }
+
+    Py_DECREF(value_tensor);
+    return 0;
+}
+
 static PyMappingMethods Tensor_as_mapping = {
     .mp_length = Tensor_length,
     .mp_subscript = Tensor_subscript,
+    .mp_ass_subscript = Tensor_ass_subscript,
 };
 
 static PyTypeObject TensorType = {

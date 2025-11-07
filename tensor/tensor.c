@@ -86,8 +86,11 @@ Tensor_init(PyObject *op, PyObject *args, PyObject *kwds)
     TensorObject *self = (TensorObject *)op;
     PyObject *input;
 
-    // Parse the input argument (a number or sequence)
-    if (!PyArg_ParseTuple(args, "O", &input)) {
+    // Include "object" as the positional argument name
+    static char *kwlist[] = {"data", NULL};
+
+    // Parse exactly one positional argument, reject any keywords
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O:Tensor", kwlist, &input)) {
         return -1;
     }
 
@@ -1008,7 +1011,7 @@ tensor_tensor(PyObject *self, PyObject *args, PyObject *kwds)
     PyObject *obj;
     int copy = 0;
 
-    static char *kwlist[] = {"object", "copy", NULL};
+    static char *kwlist[] = {"data", "copy", NULL};
 
     // Parse arguments: required object, optional copy keyword argument
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|$p", kwlist, &obj, &copy)) {

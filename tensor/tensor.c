@@ -557,7 +557,13 @@ Tensor_str(PyObject *op)
     // Handle 0D tensor: just the value
     if (self->nd == 0) {
         double value = *((double *)self->data);
-        return PyUnicode_FromFormat("%g", value);
+        PyObject *float_obj = PyFloat_FromDouble(value);
+        if (float_obj == NULL) {
+            return NULL;
+        }
+        PyObject *str = PyObject_Str(float_obj);
+        Py_DECREF(float_obj);
+        return str;
     }
 
     // Handle empty 1D tensor
@@ -1187,6 +1193,77 @@ static PyMappingMethods Tensor_as_mapping = {
         Tensor_ass_subscript,  // Called for tensor[key] = value (writing)
 };
 
+static PyObject *
+Tensor_sq_item(PyObject *self, Py_ssize_t index)
+{
+    PyObject *key = PyLong_FromSsize_t(index);
+    if (key == NULL) {
+        return NULL;
+    }
+
+    PyObject *result = Tensor_subscript(self, key);
+    Py_DECREF(key);
+    return result;
+}
+
+static int
+Tensor_sq_ass_item(PyObject *self, Py_ssize_t index, PyObject *value)
+{
+    PyObject *key = PyLong_FromSsize_t(index);
+    if (key == NULL) {
+        return -1;
+    }
+
+    int result = Tensor_ass_subscript(self, key, value);
+    Py_DECREF(key);
+    return result;
+}
+
+static int
+Tensor_contains(PyObject *op, PyObject *value)
+{
+    TensorObject *self = (TensorObject *)op;
+
+    if (self->nd == 0) {
+        // For 0D tensor, compare directly
+        double self_val = *((double *)self->data);
+        PyObject *float_obj = PyNumber_Float(value);
+        if (float_obj == NULL) {
+            return -1;
+        }
+        double val = PyFloat_AsDouble(float_obj);
+        Py_DECREF(float_obj);
+
+        return (self_val == val) ? 1 : 0;
+    }
+
+    // For 1D, check each element
+    for (Py_ssize_t i = 0; i < self->dimensions[0]; i++) {
+        char *data_ptr = self->data + (i * self->strides[0]);
+        double self_val = *((double *)data_ptr);
+
+        PyObject *float_obj = PyNumber_Float(value);
+        if (float_obj == NULL) {
+            return -1;
+        }
+        double val = PyFloat_AsDouble(float_obj);
+        Py_DECREF(float_obj);
+
+        if (self_val == val) {
+            return 1;  // Found it!
+        }
+    }
+
+    return 0;  // Not found
+}
+
+static PySequenceMethods Tensor_as_sequence = {
+    .sq_length = Tensor_length,
+    .sq_item = Tensor_sq_item,
+    .sq_ass_item = Tensor_sq_ass_item,
+    .sq_contains = Tensor_contains,
+};
+
 // Type object definition - this is the "class" definition in C
 // Think of this as the equivalent of "class Tensor:" in Python
 static PyTypeObject TensorType = {
@@ -1196,14 +1273,15 @@ static PyTypeObject TensorType = {
     .tp_itemsize = 0,  // For variable-size objects (we don't use this)
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,  // Can be subclassed
     .tp_new = Tensor_new,                                  // Called by Tensor.__new__()
-    .tp_init = (initproc)Tensor_init,     // Called by Tensor.__init__()
-    .tp_dealloc = Tensor_dealloc,         // Called when refcount reaches 0
-    .tp_members = Tensor_members,         // Direct member access (like .ndim)
-    .tp_methods = Tensor_methods,         // Methods like .tolist(), .copy()
-    .tp_getset = Tensor_getseters,        // Properties like .shape, .strides
-    .tp_repr = (reprfunc)Tensor_repr,     // Called by repr() and in REPL
-    .tp_str = (reprfunc)Tensor_str,       // Called by str() and print()
-    .tp_as_mapping = &Tensor_as_mapping,  // Enables indexing/slicing behavior
+    .tp_init = (initproc)Tensor_init,       // Called by Tensor.__init__()
+    .tp_dealloc = Tensor_dealloc,           // Called when refcount reaches 0
+    .tp_members = Tensor_members,           // Direct member access (like .ndim)
+    .tp_methods = Tensor_methods,           // Methods like .tolist(), .copy()
+    .tp_getset = Tensor_getseters,          // Properties like .shape, .strides
+    .tp_repr = (reprfunc)Tensor_repr,       // Called by repr() and in REPL
+    .tp_str = (reprfunc)Tensor_str,         // Called by str() and print()
+    .tp_as_mapping = &Tensor_as_mapping,    // Enables indexing/slicing behavior
+    .tp_as_sequence = &Tensor_as_sequence,  // Enables sequence behavior
 };
 
 // Module-level tensor() function - alternative constructor with copy parameter

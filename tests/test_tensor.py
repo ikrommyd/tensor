@@ -17,6 +17,19 @@ def test_0d():
     assert x.item() == y.item()
 
 
+def test_1d_size_1():
+    x = tensor.Tensor([42.0])
+    y = np.array([42.0])
+    assert x.shape == y.shape
+    assert x.strides == y.strides
+    assert x.ndim == y.ndim
+    assert x.size == y.size
+    assert x.base == y.base
+    len(x) == len(y)
+    assert x.tolist() == y.tolist()
+    assert x.item() == y.item()
+
+
 def test_1d():
     x = tensor.Tensor([1.0, 2.0, 3.0, 4.0, 5.0])
     y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
@@ -123,19 +136,6 @@ def test_tensor_copy():
         x_copy.item()
 
 
-def assert_slice_matches(tensor_view, numpy_view, index, expected_base):
-    x_slice = tensor_view[index]
-    y_slice = numpy_view[index]
-    assert x_slice.shape == y_slice.shape
-    assert x_slice.strides == y_slice.strides
-    assert x_slice.ndim == y_slice.ndim
-    assert x_slice.size == y_slice.size
-    assert len(x_slice) == len(y_slice)
-    assert x_slice.base is expected_base
-    assert x_slice.tolist() == y_slice.tolist()
-    return x_slice, y_slice
-
-
 BASE_SLICES = [
     slice(None, None, None),
     slice(None, None, 1),
@@ -213,17 +213,56 @@ NESTED_SLICE_SEQUENCES = [
 ALL_SLICE_SEQUENCES = [[slc] for slc in BASE_SLICES] + NESTED_SLICE_SEQUENCES
 
 
+def test_getitem_element():
+    data = list(range(1, 33))
+    x = tensor.Tensor(data)
+    y = np.array(data, dtype=np.float64)
+
+    for i in range(len(data)):
+        x_elem = x[i]
+        y_elem = y[i]
+        assert x_elem.shape == y_elem.shape
+        assert x_elem.strides == y_elem.strides
+        assert x_elem.ndim == y_elem.ndim
+        assert x_elem.size == y_elem.size
+        assert x_elem.base is None
+        assert x_elem.tolist() == y_elem.tolist()
+
+    for i in range(-1, -len(data) - 1, -1):
+        x_elem = x[i]
+        y_elem = y[i]
+        assert x_elem.shape == y_elem.shape
+        assert x_elem.strides == y_elem.strides
+        assert x_elem.ndim == y_elem.ndim
+        assert x_elem.size == y_elem.size
+        assert x_elem.tolist() == y_elem.tolist()
+
+    for i in range(5):
+        with pytest.raises(IndexError):
+            x[len(data) + i]
+        with pytest.raises(IndexError):
+            x[-(len(data) + 1 + i)]
+
+
 @pytest.mark.parametrize("sequence", ALL_SLICE_SEQUENCES)
-def test_slicing(sequence):
+def test_getitem_slice(sequence):
     data = list(range(1, 33))
     x = tensor.Tensor(data)
     y = np.array(data, dtype=np.float64)
 
     view_tensor, view_numpy = x, y
+    original_tensor = x
     for slicer in sequence:
-        view_tensor, view_numpy = assert_slice_matches(
-            view_tensor, view_numpy, slicer, x
-        )
+        x_slice = view_tensor[slicer]
+        y_slice = view_numpy[slicer]
+        assert x_slice.shape == y_slice.shape
+        assert x_slice.strides == y_slice.strides
+        assert x_slice.ndim == y_slice.ndim
+        assert x_slice.size == y_slice.size
+        assert len(x_slice) == len(y_slice)
+        assert x_slice.base is original_tensor
+        assert x_slice.tolist() == y_slice.tolist()
+        view_tensor, view_numpy = x_slice, y_slice
 
 
 @pytest.mark.parametrize("sequence", ALL_SLICE_SEQUENCES)
@@ -257,3 +296,134 @@ def test_copy_of_sliced_tensor(sequence):
     assert len(x_copy) == len(y_copy)
     assert x_copy.base is not view_tensor.base
     assert x_copy.tolist() == y_copy.tolist()
+
+
+def test_setitem_element_element():
+    data = [42.0]
+    for i in range(-5, 5):
+        x = tensor.tensor(data)
+        y = np.array(data)
+        if i == 0 or i == -1:
+            x[i] = 1.0
+            y[i] = 1.0
+            assert x.shape == y.shape
+            assert x.strides == y.strides
+            assert x.ndim == y.ndim
+            assert x.size == y.size
+            assert x.base is None
+            assert x.tolist() == y.tolist()
+        else:
+            with pytest.raises(IndexError):
+                x[i] = 1.0
+            with pytest.raises(IndexError):
+                y[i] = 1.0
+
+    data = []
+    for i in range(-5, 5):
+        x = tensor.tensor(data)
+        y = np.array(data)
+        with pytest.raises(IndexError):
+            x[i] = 1.0
+        with pytest.raises(IndexError):
+            y[i] = 1.0
+
+
+@pytest.mark.parametrize("slice", BASE_SLICES)
+def test_setitem_slice_element(slice):
+    data = list(range(1, 33))
+
+    for value in (99.0, [99.0]):
+        x = tensor.tensor(data)
+        y = np.array(data, dtype=np.float64)
+        x[slice] = value
+        y[slice] = value
+        assert x.shape == y.shape
+        assert x.strides == y.strides
+        assert x.ndim == y.ndim
+        assert x.size == y.size
+        assert len(x) == len(y)
+        assert x.base is None
+        assert x.tolist() == y.tolist()
+
+        x = tensor.tensor(data)
+        y = np.array(data, dtype=np.float64)
+        x[slice] = tensor.tensor(value)
+        y[slice] = np.array(value)
+        assert x.shape == y.shape
+        assert x.strides == y.strides
+        assert x.ndim == y.ndim
+        assert x.size == y.size
+        assert len(x) == len(y)
+        assert x.base is None
+        assert x.tolist() == y.tolist()
+
+
+@pytest.mark.parametrize("slice", BASE_SLICES)
+def test_setitem_slice_sequence(slice):
+    data = list(range(1, 33))
+    x = tensor.tensor(data)
+    y = np.array(data, dtype=np.float64)
+    slice_length = len(y[slice])
+    values = [99.0] * slice_length
+    x[slice] = values
+    y[slice] = values
+    assert x.shape == y.shape
+    assert x.strides == y.strides
+    assert x.ndim == y.ndim
+    assert x.size == y.size
+    assert len(x) == len(y)
+    assert x.base is None
+    assert x.tolist() == y.tolist()
+
+    x = tensor.tensor(data)
+    y = np.array(data, dtype=np.float64)
+    x[slice] = tensor.tensor(values)
+    y[slice] = np.array(values)
+    assert x.shape == y.shape
+    assert x.strides == y.strides
+    assert x.ndim == y.ndim
+    assert x.size == y.size
+    assert len(x) == len(y)
+    assert x.base is None
+    assert x.tolist() == y.tolist()
+
+    for i in range(-2, 3):
+        x = tensor.tensor(data)
+        y = np.array(data, dtype=np.float64)
+        incorrect_length = slice_length + i
+        values = [99.0] * incorrect_length
+        # if numpy raises ValueError, tensor should too
+        try:
+            y[slice] = values
+        except ValueError:
+            with pytest.raises(ValueError):
+                x[slice] = values
+        else:
+            x[slice] = values
+            assert x.shape == y.shape
+            assert x.strides == y.strides
+            assert x.ndim == y.ndim
+            assert x.size == y.size
+            assert len(x) == len(y)
+            assert x.base is None
+            assert x.tolist() == y.tolist()
+
+        x = tensor.tensor(data)
+        y = np.array(data, dtype=np.float64)
+        incorrect_length = slice_length + i
+        values = [99.0] * incorrect_length
+        # if numpy raises ValueError, tensor should too
+        try:
+            y[slice] = np.array(values)
+        except ValueError:
+            with pytest.raises(ValueError):
+                x[slice] = tensor.tensor(values)
+        else:
+            x[slice] = tensor.tensor(values)
+            assert x.shape == y.shape
+            assert x.strides == y.strides
+            assert x.ndim == y.ndim
+            assert x.size == y.size
+            assert len(x) == len(y)
+            assert x.base is None
+            assert x.tolist() == y.tolist()

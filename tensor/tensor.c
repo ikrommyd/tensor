@@ -301,12 +301,20 @@ static PyObject *
 Tensor_item(PyObject *op, PyObject *Py_UNUSED(ignored))
 {
     TensorObject *self = (TensorObject *)op;
-    if (self->nd != 0) {
-        PyErr_SetString(PyExc_ValueError, "item() only valid for 0D tensors");
+    if (self->nd == 0) {
+        double value = *((double *)self->data);
+        return PyFloat_FromDouble(value);
+    }
+    else if (self->nd == 1 && self->dimensions[0] == 1) {
+        char *data_ptr = self->data;
+        double value = *((double *)data_ptr);
+        return PyFloat_FromDouble(value);
+    }
+    else {
+        PyErr_SetString(PyExc_ValueError,
+                        "can only convert a tensor of size 1 to a Python scalar");
         return NULL;
     }
-    double value = *((double *)self->data);
-    return PyFloat_FromDouble(value);
 }
 
 static PyObject *

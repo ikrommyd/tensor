@@ -105,9 +105,15 @@ tensor_module_exec(PyObject *m)
 // This is the modern Python 3.5+ multi-phase initialization approach
 static PyModuleDef_Slot tensor_module_slots[] = {
     {Py_mod_exec, tensor_module_exec},  // Function to execute during module creation
+#if PY_VERSION_HEX >= 0x030c00f0        // Python 3.12+
     {Py_mod_multiple_interpreters,
      Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED},  // We don't support sub-interpreters
-    {0, NULL}                                      // Sentinel
+#endif
+#if PY_VERSION_HEX >= 0x030d00f0  // Python 3.13+
+    // signal that this module supports running without an active GIL
+    {Py_mod_gil, Py_MOD_GIL_NOT_USED},
+#endif
+    {0, NULL}  // Sentinel
 };
 
 // Module definition - describes the module to Python

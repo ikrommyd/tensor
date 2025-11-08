@@ -14,6 +14,7 @@ dev = [
 test = [
     "numpy",
     "pytest",
+    "pytest-run-parallel[psutil]"
 ]
 
 [tool.pytest.ini_options]

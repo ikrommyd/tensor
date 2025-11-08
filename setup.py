@@ -9,6 +9,7 @@ setup(
                 "tensor/tensor.c",
                 "tensor/init.c",
                 "tensor/getset.c",
+                "tensor/members.c",
                 "tensor/methods.c",
                 "tensor/repr.c",
                 "tensor/mapping.c",

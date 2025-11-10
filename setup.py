@@ -6,7 +6,7 @@ setup(
         Extension(
             "tensor",
             sources=[
-                "tensor/tensor.c",
+                "tensor/tensorobject.c",
                 "tensor/init.c",
                 "tensor/getset.c",
                 "tensor/members.c",
@@ -14,6 +14,8 @@ setup(
                 "tensor/repr.c",
                 "tensor/mapping.c",
                 "tensor/sequence.c",
+                "tensor/functions.c",
+                "tensor/module.c",
             ],
             include_dirs=[numpy.get_include()],
         )

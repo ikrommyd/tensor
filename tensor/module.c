@@ -1,6 +1,6 @@
 /*
- * Tensor C Extension Module
- * Main type definition and module initialization
+ * Module Initialization and Definition
+ * Handles module-level setup, type registration, and module entry points
  */
 
 #define PY_ARRAY_UNIQUE_SYMBOL TENSOR_ARRAY_API
@@ -10,74 +10,7 @@
 
 #include <numpy/arrayobject.h>
 
-// Type object definition - this is the "class" definition in C
-// Think of this as the equivalent of "class Tensor:" in Python
-PyTypeObject TensorType = {
-    .ob_base = PyVarObject_HEAD_INIT(NULL, 0).tp_name = "tensor.Tensor",
-    .tp_doc = PyDoc_STR("Tensor object"),
-    .tp_basicsize = sizeof(TensorObject),  // Memory size of each instance
-    .tp_itemsize = 0,  // For variable-size objects (we don't use this)
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,  // Can be subclassed
-    .tp_new = Tensor_new,                                  // Called by Tensor.__new__()
-    .tp_init = (initproc)Tensor_init,       // Called by Tensor.__init__()
-    .tp_dealloc = Tensor_dealloc,           // Called when refcount reaches 0
-    .tp_members = Tensor_members,           // Direct member access (like .ndim)
-    .tp_methods = Tensor_methods,           // Methods like .tolist(), .copy()
-    .tp_getset = Tensor_getseters,          // Properties like .shape, .strides
-    .tp_repr = (reprfunc)Tensor_repr,       // Called by repr() and in REPL
-    .tp_str = (reprfunc)Tensor_str,         // Called by str() and print()
-    .tp_as_mapping = &Tensor_as_mapping,    // Enables indexing/slicing behavior
-    .tp_as_sequence = &Tensor_as_sequence,  // Enables sequence behavior
-};
-
-// Module-level tensor() function - alternative constructor with copy parameter
-// Usage: tensor.tensor([1, 2, 3]) or tensor.tensor(existing_tensor, copy=True)
-static PyObject *
-tensor_tensor(PyObject *self, PyObject *args, PyObject *kwds)
-{
-    PyObject *obj;
-    int copy = 0;
-
-    static char *kwlist[] = {"data", "copy", NULL};
-
-    // Parse arguments: required object, optional copy keyword argument
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|$p", kwlist, &obj, &copy)) {
-        return NULL;
-    }
-
-    // If input is already a Tensor, either copy it or return it as-is
-    if (PyObject_TypeCheck(obj, &TensorType)) {
-        if (copy) {
-            return Tensor_copy(obj, NULL);
-        }
-        else {
-            Py_INCREF(obj);
-            return obj;
-        }
-    }
-
-    // Create new tensor from other object (number or sequence)
-    PyObject *tensor_obj = Tensor_new(&TensorType, NULL, NULL);
-    if (tensor_obj == NULL) {
-        return NULL;
-    }
-
-    PyObject *init_args = PyTuple_Pack(1, obj);
-    if (init_args == NULL) {
-        Py_DECREF(tensor_obj);
-        return NULL;
-    }
-
-    if (Tensor_init(tensor_obj, init_args, NULL) < 0) {
-        Py_DECREF(init_args);
-        Py_DECREF(tensor_obj);
-        return NULL;
-    }
-
-    Py_DECREF(init_args);
-    return tensor_obj;
-}
-
+// Module methods array - exported functions available at module level
 static PyMethodDef tensor_module_methods[] = {
     {"tensor", (PyCFunction)tensor_tensor, METH_VARARGS | METH_KEYWORDS,
      "Create a Tensor from a number or sequence"},

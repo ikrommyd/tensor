@@ -30,7 +30,7 @@ typedef struct {
                 // Non-NULL means this is a view - don't free data, just DECREF base
 } TensorObject;
 
-/* External type reference - defined in tensor.c */
+/* External type reference - defined in tensorobject.c */
 extern PyTypeObject TensorType;
 
 /* Memory lifecycle functions - init.c */
@@ -91,5 +91,9 @@ Tensor_contains(PyObject *op, PyObject *value);
 PyObject *
 Tensor_concat(PyObject *op, PyObject *other);
 extern PySequenceMethods Tensor_as_sequence;
+
+/* Module-level functions - functions.c */
+PyObject *
+tensor_tensor(PyObject *self, PyObject *args, PyObject *kwds);
 
 #endif /* TENSOR_H */
